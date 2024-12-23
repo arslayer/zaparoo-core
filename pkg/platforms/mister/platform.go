@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/ZaparooProject/zaparoo-core/pkg/api/models"
+	"github.com/ZaparooProject/zaparoo-core/pkg/config"
 	"github.com/ZaparooProject/zaparoo-core/pkg/database/gamesdb"
 	"github.com/ZaparooProject/zaparoo-core/pkg/readers/optical_drive"
 	"github.com/ZaparooProject/zaparoo-core/pkg/service/tokens"
@@ -20,7 +21,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ZaparooProject/zaparoo-core/pkg/config"
 	"github.com/ZaparooProject/zaparoo-core/pkg/platforms"
 	"github.com/ZaparooProject/zaparoo-core/pkg/readers"
 	"github.com/ZaparooProject/zaparoo-core/pkg/readers/file"
@@ -75,7 +75,7 @@ func (p *Platform) Id() string {
 	return "mister"
 }
 
-func (p *Platform) SupportedReaders(cfg *config.UserConfig) []readers.Reader {
+func (p *Platform) SupportedReaders(cfg *config.Instance) []readers.Reader {
 	return []readers.Reader{
 		libnfc.NewReader(cfg),
 		file.NewReader(cfg),
@@ -84,7 +84,34 @@ func (p *Platform) SupportedReaders(cfg *config.UserConfig) []readers.Reader {
 	}
 }
 
-func (p *Platform) Setup(cfg *config.UserConfig, ns chan<- models.Notification) error {
+func (p *Platform) StartPre(cfg *config.Instance) error {
+	err := os.MkdirAll(TempDir, 0755)
+	if err != nil {
+		return err
+	}
+
+	err = os.MkdirAll(DataDir, 0755)
+	if err != nil {
+		return err
+	}
+
+	err = os.MkdirAll(filepath.Join(p.DataDir(), platforms.AssetsDir), 0755)
+	if err != nil {
+		return err
+	}
+
+	// migrate old config folder db
+	oldTaptoDbPath := "/media/fat/Scripts/.config/tapto/tapto.db"
+	newTaptoDbPath := filepath.Join(p.DataDir(), config.TapToDbFile)
+	if _, err := os.Stat(oldTaptoDbPath); err == nil {
+		if _, err := os.Stat(newTaptoDbPath); errors.Is(err, os.ErrNotExist) {
+			err := utils.CopyFile(oldTaptoDbPath, newTaptoDbPath)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
 	kbd, err := input.NewKeyboard()
 	if err != nil {
 		return err
@@ -94,7 +121,7 @@ func (p *Platform) Setup(cfg *config.UserConfig, ns chan<- models.Notification) 
 
 	gpd, err := uinput.CreateGamepad(
 		"/dev/uinput",
-		[]byte("tapto"),
+		[]byte("zaparoo"),
 		0x1234,
 		0x5678,
 	)
@@ -102,14 +129,6 @@ func (p *Platform) Setup(cfg *config.UserConfig, ns chan<- models.Notification) 
 		return err
 	}
 	p.gpd = gpd
-
-	tr, stopTr, err := StartTracker(*UserConfigToMrext(cfg), ns)
-	if err != nil {
-		return err
-	}
-
-	p.tr = tr
-	p.stopTr = stopTr
 
 	uids, texts, err := LoadCsvMappings()
 	if err != nil {
@@ -154,6 +173,18 @@ func (p *Platform) Setup(cfg *config.UserConfig, ns chan<- models.Notification) 
 
 		"ini": CmdIni, // DEPRECATED
 	}
+
+	return nil
+}
+
+func (p *Platform) StartPost(cfg *config.Instance, ns chan<- models.Notification) error {
+	tr, stopTr, err := StartTracker(*UserConfigToMrext(cfg), ns)
+	if err != nil {
+		return err
+	}
+
+	p.tr = tr
+	p.stopTr = stopTr
 
 	return nil
 }
@@ -211,23 +242,31 @@ func (p *Platform) ReadersUpdateHook(readers map[string]*readers.Reader) error {
 	return nil
 }
 
-func (p *Platform) RootFolders(cfg *config.UserConfig) []string {
+func (p *Platform) RootDirs(cfg *config.Instance) []string {
 	return games.GetGamesFolders(UserConfigToMrext(cfg))
 }
 
-func (p *Platform) ZipsAsFolders() bool {
+func (p *Platform) ZipsAsDirs() bool {
 	return true
 }
 
-func (p *Platform) ConfigFolder() string {
-	return ConfigFolder
+func (p *Platform) DataDir() string {
+	return DataDir
 }
 
-func (p *Platform) LogFolder() string {
-	return TempFolder
+func (p *Platform) LogDir() string {
+	return TempDir
 }
 
-func (p *Platform) NormalizePath(cfg *config.UserConfig, path string) string {
+func (p *Platform) ConfigDir() string {
+	return DataDir
+}
+
+func (p *Platform) TempDir() string {
+	return TempDir
+}
+
+func (p *Platform) NormalizePath(cfg *config.Instance, path string) string {
 	return NormalizePath(cfg, path)
 }
 
@@ -260,11 +299,11 @@ func (p *Platform) GetActiveLauncher() string {
 	return core
 }
 
-func (p *Platform) PlayFailSound(cfg *config.UserConfig) {
+func (p *Platform) PlayFailSound(cfg *config.Instance) {
 	PlayFail(cfg)
 }
 
-func (p *Platform) PlaySuccessSound(cfg *config.UserConfig) {
+func (p *Platform) PlaySuccessSound(cfg *config.Instance) {
 	PlaySuccess(cfg)
 }
 
@@ -284,7 +323,7 @@ func (p *Platform) ActiveGamePath() string {
 	return p.tr.ActiveGamePath
 }
 
-func (p *Platform) LaunchSystem(cfg *config.UserConfig, id string) error {
+func (p *Platform) LaunchSystem(cfg *config.Instance, id string) error {
 	system, err := games.LookupSystem(id)
 	if err != nil {
 		return err
@@ -293,7 +332,7 @@ func (p *Platform) LaunchSystem(cfg *config.UserConfig, id string) error {
 	return mister.LaunchCore(UserConfigToMrext(cfg), *system)
 }
 
-func (p *Platform) LaunchFile(cfg *config.UserConfig, path string) error {
+func (p *Platform) LaunchFile(cfg *config.Instance, path string) error {
 	launchers := utils.PathToLaunchers(cfg, p, path)
 
 	if len(launchers) == 0 {
@@ -435,7 +474,7 @@ func (p *Platform) Launchers() []platforms.Launcher {
 		Extensions: []string{".adf"},
 		Launch:     launch,
 		Scanner: func(
-			cfg *config.UserConfig,
+			cfg *config.Instance,
 			systemId string,
 			results []platforms.ScanResult,
 		) ([]platforms.ScanResult, error) {
@@ -449,7 +488,7 @@ func (p *Platform) Launchers() []platforms.Launcher {
 				return results, err
 			}
 
-			sfs := gamesdb.GetSystemPaths(p, p.RootFolders(cfg), []gamesdb.System{*s})
+			sfs := gamesdb.GetSystemPaths(p, p.RootDirs(cfg), []gamesdb.System{*s})
 			for _, sf := range sfs {
 				for _, txt := range []string{aGamesPath, aDemosPath} {
 					tp, err := gamesdb.FindPath(filepath.Join(sf.Path, txt))
@@ -492,7 +531,7 @@ func (p *Platform) Launchers() []platforms.Launcher {
 		Extensions: []string{".neo"},
 		Launch:     launch,
 		Scanner: func(
-			cfg *config.UserConfig,
+			cfg *config.Instance,
 			systemId string,
 			results []platforms.ScanResult,
 		) ([]platforms.ScanResult, error) {
@@ -505,7 +544,7 @@ func (p *Platform) Launchers() []platforms.Launcher {
 				return results, err
 			}
 
-			sfs := gamesdb.GetSystemPaths(p, p.RootFolders(cfg), []gamesdb.System{*s})
+			sfs := gamesdb.GetSystemPaths(p, p.RootDirs(cfg), []gamesdb.System{*s})
 			for _, sf := range sfs {
 				rsf, err := gamesdb.FindPath(filepath.Join(sf.Path, romsetsFilename))
 				if err == nil {

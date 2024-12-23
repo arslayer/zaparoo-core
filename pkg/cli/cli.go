@@ -11,7 +11,9 @@ import (
 	"github.com/ZaparooProject/zaparoo-core/pkg/utils"
 	"github.com/google/uuid"
 	"github.com/mdp/qrterminal/v3"
+	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	"io"
 	"os"
 	"strings"
 )
@@ -79,7 +81,7 @@ func (f *Flags) Pre(pl platforms.Platform) {
 	flag.Parse()
 
 	if *f.Version {
-		fmt.Printf("Zaparoo v%s (%s)\n", config.Version, pl.Id())
+		fmt.Printf("Zaparoo v%s (%s)\n", config.AppVersion, pl.Id())
 		os.Exit(0)
 	}
 }
@@ -92,7 +94,7 @@ type ConnQr struct {
 
 // Post actions all remaining common flags that require the environment to be
 // set up. Logging is allowed.
-func (f *Flags) Post(cfg *config.UserConfig) {
+func (f *Flags) Post(cfg *config.Instance) {
 	if *f.Write != "" {
 		data, err := json.Marshal(&models.ReaderWriteParams{
 			Text: *f.Write,
@@ -283,17 +285,23 @@ func (f *Flags) Post(cfg *config.UserConfig) {
 }
 
 // Setup initializes the user config and logging. Returns a user config object.
-func Setup(pl platforms.Platform, defaultConfig *config.UserConfig) *config.UserConfig {
-	cfg, err := config.NewUserConfig(defaultConfig)
+func Setup(pl platforms.Platform, defaultConfig config.Values, writers []io.Writer) *config.Instance {
+	err := utils.InitLogging(pl, writers)
+	if err != nil {
+		_, _ = fmt.Fprintf(os.Stderr, "Error initializing logging: %v\n", err)
+		os.Exit(1)
+	}
+
+	cfg, err := config.NewConfig(pl.ConfigDir(), defaultConfig)
 	if err != nil {
 		_, _ = fmt.Fprintf(os.Stderr, "Error loading config: %v\n", err)
 		os.Exit(1)
 	}
 
-	err = utils.InitLogging(cfg, pl)
-	if err != nil {
-		_, _ = fmt.Fprintf(os.Stderr, "Error initializing logging: %v\n", err)
-		os.Exit(1)
+	if cfg.DebugLogging() {
+		zerolog.SetGlobalLevel(zerolog.DebugLevel)
+	} else {
+		zerolog.SetGlobalLevel(zerolog.InfoLevel)
 	}
 
 	return cfg

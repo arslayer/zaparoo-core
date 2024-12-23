@@ -10,6 +10,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/rs/zerolog/log"
 	"net/url"
+	"strconv"
 	"time"
 )
 
@@ -21,14 +22,14 @@ var (
 // LocalClient sends a single unauthenticated method with params to the local
 // running API service, waits for a response until timeout then disconnects.
 func LocalClient(
-	cfg *config.UserConfig,
+	cfg *config.Instance,
 	method string,
 	params string,
 ) (string, error) {
 	u := url.URL{
 		Scheme: "ws",
-		Host:   "localhost:" + cfg.Api.Port,
-		Path:   "/",
+		Host:   "localhost:" + strconv.Itoa(cfg.ApiPort()),
+		Path:   "/api/v1.0",
 	}
 
 	id, err := uuid.NewUUID()

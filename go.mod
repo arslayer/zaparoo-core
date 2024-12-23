@@ -1,6 +1,8 @@
 module github.com/ZaparooProject/zaparoo-core
 
-go 1.19
+go 1.21.0
+
+toolchain go1.23.4
 
 require github.com/rthornton128/goncurses v0.0.0-20220628231859-fd57939296e5
 
@@ -44,6 +46,7 @@ require (
 	github.com/hsanjuan/go-ndef v0.0.1
 	github.com/mdp/qrterminal/v3 v3.2.0
 	github.com/olahol/melody v1.2.1
+	github.com/pelletier/go-toml/v2 v2.2.3
 	github.com/rs/zerolog v1.31.0
 	github.com/wizzomafizzo/mrext v0.0.0-20240804073054-39dcc9bccc81
 	go.bug.st/serial v1.6.2

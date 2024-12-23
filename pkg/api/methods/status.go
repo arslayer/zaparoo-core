@@ -11,7 +11,7 @@ import (
 
 func newStatus(
 	pl platforms.Platform,
-	cfg *config.UserConfig,
+	cfg *config.Instance,
 	st *state.State,
 ) models.StatusResponse {
 	active := st.GetActiveCard()
@@ -91,7 +91,7 @@ func HandleStatus(env requests.RequestEnv) (any, error) {
 func HandleVersion(env requests.RequestEnv) (any, error) {
 	log.Info().Msg("received version request")
 	return models.VersionResponse{
-		Version:  config.Version,
+		Version:  config.AppVersion,
 		Platform: env.Platform.Id(),
 	}, nil
 }

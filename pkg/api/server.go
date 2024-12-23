@@ -7,13 +7,14 @@ import (
 	"github.com/ZaparooProject/zaparoo-core/pkg/api/methods"
 	"github.com/ZaparooProject/zaparoo-core/pkg/api/models"
 	"github.com/ZaparooProject/zaparoo-core/pkg/api/models/requests"
+	"github.com/ZaparooProject/zaparoo-core/pkg/config"
 	"github.com/ZaparooProject/zaparoo-core/pkg/service/tokens"
 	"net"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
-	"github.com/ZaparooProject/zaparoo-core/pkg/config"
 	"github.com/ZaparooProject/zaparoo-core/pkg/database"
 	"github.com/ZaparooProject/zaparoo-core/pkg/platforms"
 	"github.com/ZaparooProject/zaparoo-core/pkg/service/state"
@@ -130,7 +131,7 @@ func handleResponse(resp models.ResponseObject) error {
 
 func Start(
 	pl platforms.Platform,
-	cfg *config.UserConfig,
+	cfg *config.Instance,
 	st *state.State,
 	itq chan<- tokens.Token,
 	db *database.Database,
@@ -180,10 +181,24 @@ func Start(
 		}
 	}(ns)
 
-	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
+	r.Get("/api", func(w http.ResponseWriter, r *http.Request) {
 		err := m.HandleRequest(w, r)
 		if err != nil {
-			log.Error().Err(err).Msg("handling websocket request")
+			log.Error().Err(err).Msg("handling websocket request: latest")
+		}
+	})
+
+	r.Get("/api/v1", func(w http.ResponseWriter, r *http.Request) {
+		err := m.HandleRequest(w, r)
+		if err != nil {
+			log.Error().Err(err).Msg("handling websocket request: v1")
+		}
+	})
+
+	r.Get("/api/v1.0", func(w http.ResponseWriter, r *http.Request) {
+		err := m.HandleRequest(w, r)
+		if err != nil {
+			log.Error().Err(err).Msg("handling websocket request: v1.0")
 		}
 	})
 
@@ -264,7 +279,7 @@ func Start(
 	// TODO: use allow list
 	r.Get("/l/*", methods.HandleLaunchBasic(st, itq))
 
-	err := http.ListenAndServe(":"+cfg.Api.Port, r)
+	err := http.ListenAndServe(":"+strconv.Itoa(cfg.ApiPort()), r)
 	if err != nil {
 		log.Error().Err(err).Msg("error starting http server")
 	}

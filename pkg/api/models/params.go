@@ -45,15 +45,13 @@ type ReaderWriteParams struct {
 }
 
 type UpdateSettingsParams struct {
-	ConnectionString  *string   `json:"connectionString"`
-	AllowCommands     *bool     `json:"allowCommands"`
-	DisableSounds     *bool     `json:"disableSounds"`
-	ProbeDevice       *bool     `json:"probeDevice"`
-	ExitGame          *bool     `json:"exitGame"`
-	ExitGameDelay     *int      `json:"exitGameDelay"`
-	ExitGameBlocklist *[]string `json:"exitGameBlocklist"`
-	Debug             *bool     `json:"debug"`
-	Launching         *bool     `json:"launching"`
+	LaunchingActive         *bool     `json:"launchingActive"`
+	DebugLogging            *bool     `json:"debugLogging"`
+	AudioScanFeedback       *bool     `json:"audioScanFeedback"`
+	ReadersAutoDetect       *bool     `json:"readersAutoDetect"`
+	ReadersScanMode         *string   `json:"readersScanMode"`
+	ReadersScanExitDelay    *float32  `json:"readersScanExitDelay"`
+	ReadersScanIgnoreSystem *[]string `json:"readersScanIgnoreSystems"`
 }
 
 type NewClientParams struct {
