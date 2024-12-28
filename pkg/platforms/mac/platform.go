@@ -97,14 +97,6 @@ func (p *Platform) KillLauncher() error {
 	return nil
 }
 
-func (p *Platform) LaunchingEnabled() bool {
-	return true
-}
-
-func (p *Platform) SetLaunching(disabled bool) error {
-	return nil
-}
-
 func (p *Platform) GetActiveLauncher() string {
 	return ""
 }
@@ -148,10 +140,6 @@ func (p *Platform) LaunchFile(cfg *config.Instance, path string) error {
 		return exec.Command("cmd", "/c", "C:\\Program Files (x86)\\Steam\\steam.exe", "steam://rungameid/"+fn).Start()
 	}
 
-	return nil
-}
-
-func (p *Platform) Shell(cmd string) error {
 	return nil
 }
 

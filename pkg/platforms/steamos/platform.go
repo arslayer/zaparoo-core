@@ -114,14 +114,6 @@ func (p *Platform) KillLauncher() error {
 	return nil
 }
 
-func (p *Platform) LaunchingEnabled() bool {
-	return true
-}
-
-func (p *Platform) SetLaunching(_ bool) error {
-	return nil
-}
-
 func (p *Platform) GetActiveLauncher() string {
 	// TODO: is this possible?
 	return ""
@@ -161,10 +153,6 @@ func (p *Platform) LaunchFile(cfg *config.Instance, path string) error {
 		return errors.New("no launcher found")
 	}
 	return launchers[0].Launch(cfg, path)
-}
-
-func (p *Platform) Shell(cmd string) error {
-	return exec.Command("bash", "-c", cmd).Start()
 }
 
 func (p *Platform) KeyboardInput(_ string) error {

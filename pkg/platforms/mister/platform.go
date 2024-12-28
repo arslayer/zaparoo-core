@@ -14,7 +14,6 @@ import (
 	"github.com/ZaparooProject/zaparoo-core/pkg/service/tokens"
 	"github.com/ZaparooProject/zaparoo-core/pkg/utils"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -275,20 +274,6 @@ func (p *Platform) KillLauncher() error {
 	return nil
 }
 
-func (p *Platform) LaunchingEnabled() bool {
-	_, err := os.Stat(DisableLaunchFile)
-	return err != nil
-}
-
-func (p *Platform) SetLaunching(disabled bool) error {
-	if disabled {
-		return os.Remove(DisableLaunchFile)
-	} else {
-		_, err := os.Create(DisableLaunchFile)
-		return err
-	}
-}
-
 func (p *Platform) GetActiveLauncher() string {
 	core := GetActiveCoreName()
 
@@ -341,15 +326,6 @@ func (p *Platform) LaunchFile(cfg *config.Instance, path string) error {
 
 	// just pick the first one for now
 	return launchers[0].Launch(cfg, path)
-}
-
-func (p *Platform) Shell(cmd string) error {
-	command := exec.Command("bash", "-c", cmd)
-	err := command.Start()
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 func (p *Platform) KeyboardInput(input string) error {

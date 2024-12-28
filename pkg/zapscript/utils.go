@@ -2,7 +2,9 @@ package zapscript
 
 import (
 	"fmt"
+	"os/exec"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/rs/zerolog/log"
@@ -10,7 +12,7 @@ import (
 	"github.com/ZaparooProject/zaparoo-core/pkg/platforms"
 )
 
-func cmdDelay(pl platforms.Platform, env platforms.CmdEnv) error {
+func cmdDelay(_ platforms.Platform, env platforms.CmdEnv) error {
 	log.Info().Msgf("delaying for: %s", env.Args)
 
 	amount, err := strconv.Atoi(env.Args)
@@ -23,10 +25,42 @@ func cmdDelay(pl platforms.Platform, env platforms.CmdEnv) error {
 	return nil
 }
 
-func cmdShell(pl platforms.Platform, env platforms.CmdEnv) error {
-	if !env.Manual {
-		return fmt.Errorf("shell commands must be manually run")
+func cmdExecute(_ platforms.Platform, env platforms.CmdEnv) error {
+	if !env.Cfg.IsExecuteAllowed(env.Args) {
+		return fmt.Errorf("execute not allowed: %s", env.Args)
 	}
 
-	return pl.Shell(env.Args)
+	// very basic support for treating quoted strings as a single field
+	// probably needs to be expanded to include single quotes and
+	// escaped characters
+	sb := &strings.Builder{}
+	quoted := false
+	var tokenArgs []string
+	for _, r := range env.Args {
+		if r == '"' {
+			quoted = !quoted
+			sb.WriteRune(r)
+		} else if !quoted && r == ' ' {
+			tokenArgs = append(tokenArgs, sb.String())
+			sb.Reset()
+		} else {
+			sb.WriteRune(r)
+		}
+	}
+	if sb.Len() > 0 {
+		tokenArgs = append(tokenArgs, sb.String())
+	}
+
+	if len(tokenArgs) == 0 {
+		return fmt.Errorf("execute command is empty")
+	}
+
+	cmd := tokenArgs[0]
+	var cmdArgs []string
+
+	if len(tokenArgs) > 1 {
+		cmdArgs = tokenArgs[1:]
+	}
+
+	return exec.Command(cmd, cmdArgs...).Run()
 }

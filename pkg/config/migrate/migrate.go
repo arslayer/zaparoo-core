@@ -99,7 +99,11 @@ func IniToToml(iniPath string) (config.Values, error) {
 	}
 
 	// launchers - allow file
-	vals.Launchers.AllowFile = iniVals.Launchers.AllowFile
+	for _, v := range iniVals.Launchers.AllowFile {
+		s := strings.ReplaceAll(v, "\\", "\\\\")
+		s = "^" + s + "$"
+		vals.Launchers.AllowFile = append(vals.Launchers.AllowFile, s)
+	}
 
 	// api - port
 	port, err := strconv.Atoi(iniVals.Api.Port)
@@ -110,7 +114,11 @@ func IniToToml(iniPath string) (config.Values, error) {
 	}
 
 	// api - allow launch
-	vals.Service.AllowLaunch = iniVals.Api.AllowLaunch
+	vals.Service.AllowRun = iniVals.Api.AllowLaunch
+	for _, v := range iniVals.Api.AllowLaunch {
+		s := "^" + v + "$"
+		vals.Service.AllowRun = append(vals.Service.AllowRun, s)
+	}
 
 	return vals, nil
 }

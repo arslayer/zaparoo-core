@@ -5,12 +5,13 @@ import "github.com/google/uuid"
 const (
 	ReadersConnected     = "readers.connected"
 	ReadersDisconnected  = "readers.disconnected"
-	TokensLaunching      = "tokens.launching"
+	TokensRunning        = "tokens.running"
 	TokensActive         = "tokens.active"
 	MediaStopped         = "media.stopped"
 	MediaStarted         = "media.started"
 	MediaIndexing        = "media.indexing"
-	MethodLaunch         = "launch"
+	MethodLaunch         = "launch" // DEPRECATED
+	MethodRun            = "run"
 	MethodStop           = "stop"
 	MethodMediaIndex     = "media.index"
 	MethodMediaSearch    = "media.search"
@@ -27,7 +28,7 @@ const (
 	MethodMappingsUpdate = "mappings.update"
 	MethodMappingsReload = "mappings.reload"
 	MethodReadersWrite   = "readers.write"
-	MethodStatus         = "status"
+	MethodStatus         = "status" // DEPRECATED
 	MethodVersion        = "version"
 )
 
