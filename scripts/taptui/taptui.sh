@@ -35,7 +35,10 @@ amiiboAPICache="${sdroot}/Scripts/.config/tapto/amiibo.json"
 [[ -d "${sdroot}" ]] || map="${scriptdir}/nfc.csv"
 [[ -d "${sdroot}" ]] && PATH="${sdroot}/linux:${sdroot}/Scripts:${PATH}"
 mapHeader="match_uid,match_text,text"
-taptoAPI="${taptoAPI:=localhost:7497/api/v1}"
+
+# New API address
+taptoAPI="${taptoAPI:=localhost:7497/}"
+
 remoteConnection="false"
 logFile="/var/log/tapto/tapto.log"
 # Match MiSTer theme
