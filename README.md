@@ -90,14 +90,21 @@ See the [Contributors](https://wiki.zaparoo.org/Contributors) page for a complet
                 </a>
             </td>
             <td align="center">
+                <a href="https://github.com/Spice-King">
+                    <img src="https://avatars.githubusercontent.com/u/590498?v=4" width="100;" alt="Spice-King"/>
+                    <br />
+                    <sub><b>Kyle Filz</b></sub>
+                </a>
+            </td>
+		</tr>
+		<tr>
+            <td align="center">
                 <a href="https://github.com/sreuter">
                     <img src="https://avatars.githubusercontent.com/u/550246?v=4" width="100;" alt="sreuter"/>
                     <br />
                     <sub><b>Sascha Reuter</b></sub>
                 </a>
             </td>
-		</tr>
-		<tr>
             <td align="center">
                 <a href="https://github.com/jmf866">
                     <img src="https://avatars.githubusercontent.com/u/11838274?v=4" width="100;" alt="jmf866"/>
