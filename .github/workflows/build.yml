@@ -40,6 +40,18 @@ jobs:
             arch: arm64
     steps:
       - uses: actions/checkout@v4
+      - id: zaparooapprel
+        uses: pozetroninc/github-action-get-latest-release@v0.8.0
+        with:
+          repository: ZaparooProject/zaparoo-app
+      - name: Get latest Zaparoo App web build
+        run: |
+          APP_TAG=${{ steps.zaparooapprel.outputs.release }}
+          APP_VERSION=${APP_TAG#v}
+          APP_FILENAME=zaparoo_app-web-${APP_VERSION}.tar.gz
+          wget https://github.com/ZaparooProject/zaparoo-app/releases/download/${APP_TAG}/${APP_FILENAME} -O pkg/assets/_app/${APP_FILENAME}
+          mkdir pkg/assets/_app/dist
+          tar xf pkg/assets/_app/${APP_FILENAME} -C pkg/assets/_app/dist/
       - name: Cache Go packages and build output
         uses: actions/cache@v4
         env:
