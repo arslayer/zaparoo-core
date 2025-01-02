@@ -55,6 +55,11 @@ jobs:
           wget https://github.com/ZaparooProject/zaparoo-app/releases/download/${APP_TAG}/${APP_FILENAME} -O pkg/assets/_app/${APP_FILENAME}
           mkdir pkg/assets/_app/dist
           tar xf pkg/assets/_app/${APP_FILENAME} -C pkg/assets/_app/dist/
+      - name: Write release version
+        run: |
+          VERSION=${GITHUB_REF_NAME#v}
+          echo Version: $VERSION
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
       - name: Cache Go packages and build output
         uses: actions/cache@v4
         env:
@@ -96,4 +101,4 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           tag: ${{ github.ref_name }}
         run: |
-          gh release upload "$tag" _build/${{matrix.platform}}_${{matrix.arch}}/zaparoo-${{matrix.platform}}_${{matrix.arch}}.zip
+          gh release upload "$tag" _build/${{matrix.platform}}_${{matrix.arch}}/zaparoo-${{matrix.platform}}_${{matrix.arch}}-${VERSION}.zip
