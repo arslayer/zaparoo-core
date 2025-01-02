@@ -48,6 +48,7 @@ jobs:
         uses: pozetroninc/github-action-get-latest-release@v0.8.0
         with:
           repository: ZaparooProject/zaparoo-app
+          token: ${{ secrets.GITHUB_TOKEN }}
       - name: Get latest Zaparoo App web build
         run: |
           APP_TAG=${{ steps.zaparooapprel.outputs.release }}
