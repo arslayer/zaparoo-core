@@ -1,3 +1,4 @@
+name: Build all releases
 on:
   push:
     tags:

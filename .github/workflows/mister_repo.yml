@@ -1,4 +1,4 @@
-name: Generate MiSTer latest repo
+name: Generate MiSTer Downloader repo
 on:
   workflow_dispatch:
 
