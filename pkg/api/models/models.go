@@ -3,16 +3,22 @@ package models
 import "github.com/google/uuid"
 
 const (
-	ReadersConnected     = "readers.connected"
-	ReadersDisconnected  = "readers.disconnected"
-	TokensRunning        = "tokens.running"
-	TokensActive         = "tokens.active"
-	MediaStopped         = "media.stopped"
-	MediaStarted         = "media.started"
-	MediaIndexing        = "media.indexing"
+	NotificationReadersConnected    = "readers.added"
+	NotificationReadersDisconnected = "readers.removed"
+	NotificationRunning             = "running"
+	NotificationTokensAdded         = "tokens.added"
+	NotificationTokensRemoved       = "tokens.removed"
+	NotificationStopped             = "media.stopped"
+	NotificationStarted             = "media.started"
+	NotificationMediaIndexing       = "media.indexing"
+)
+
+const (
 	MethodLaunch         = "launch" // DEPRECATED
 	MethodRun            = "run"
 	MethodStop           = "stop"
+	MethodTokens         = "tokens"
+	MethodMedia          = "media"
 	MethodMediaIndex     = "media.index"
 	MethodMediaSearch    = "media.search"
 	MethodSettings       = "settings"
@@ -28,7 +34,6 @@ const (
 	MethodMappingsUpdate = "mappings.update"
 	MethodMappingsReload = "mappings.reload"
 	MethodReadersWrite   = "readers.write"
-	MethodStatus         = "status" // DEPRECATED
 	MethodVersion        = "version"
 )
 

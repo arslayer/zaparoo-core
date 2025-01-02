@@ -32,11 +32,15 @@ import (
 const RequestTimeout = 30 * time.Second
 
 var methodMap = map[string]func(requests.RequestEnv) (any, error){
-	// running
+	// run
 	models.MethodLaunch: methods.HandleRun, // DEPRECATED
 	models.MethodRun:    methods.HandleRun,
 	models.MethodStop:   methods.HandleStop,
+	// tokens
+	models.MethodTokens:  methods.HandleTokens,
+	models.MethodHistory: methods.HandleHistory,
 	// media
+	models.MethodMedia:       methods.HandleMedia,
 	models.MethodMediaIndex:  methods.HandleIndexMedia,
 	models.MethodMediaSearch: methods.HandleGames,
 	// settings
@@ -44,8 +48,6 @@ var methodMap = map[string]func(requests.RequestEnv) (any, error){
 	models.MethodSettingsUpdate: methods.HandleSettingsUpdate,
 	// systems
 	models.MethodSystems: methods.HandleSystems,
-	// history
-	models.MethodHistory: methods.HandleHistory,
 	// mappings
 	models.MethodMappings:       methods.HandleMappings,
 	models.MethodMappingsNew:    methods.HandleAddMapping,
@@ -55,7 +57,6 @@ var methodMap = map[string]func(requests.RequestEnv) (any, error){
 	// readers
 	models.MethodReadersWrite: methods.HandleReaderWrite,
 	// utils
-	models.MethodStatus:  methods.HandleStatus, // TODO: remove, convert to individual methods
 	models.MethodVersion: methods.HandleVersion,
 }
 
@@ -188,17 +189,17 @@ func Start(
 		}
 	})
 
-	r.Get("/api/v1", func(w http.ResponseWriter, r *http.Request) {
+	r.Get("/api/v0", func(w http.ResponseWriter, r *http.Request) {
 		err := m.HandleRequest(w, r)
 		if err != nil {
-			log.Error().Err(err).Msg("handling websocket request: v1")
+			log.Error().Err(err).Msg("handling websocket request: v0")
 		}
 	})
 
-	r.Get("/api/v1.0", func(w http.ResponseWriter, r *http.Request) {
+	r.Get("/api/v0.1", func(w http.ResponseWriter, r *http.Request) {
 		err := m.HandleRequest(w, r)
 		if err != nil {
-			log.Error().Err(err).Msg("handling websocket request: v1.0")
+			log.Error().Err(err).Msg("handling websocket request: v0.1")
 		}
 	})
 

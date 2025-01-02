@@ -15,15 +15,6 @@ type SearchResults struct {
 	Total   int                 `json:"total"`
 }
 
-type IndexStatusResponse struct {
-	Exists      bool   `json:"exists"`
-	Indexing    bool   `json:"indexing"`
-	TotalSteps  int    `json:"totalSteps"`
-	CurrentStep int    `json:"currentStep"`
-	CurrentDesc string `json:"currentDesc"`
-	TotalFiles  int    `json:"totalFiles"`
-}
-
 type SettingsResponse struct {
 	RunZapScript            bool     `json:"runZapScript"`
 	DebugLogging            bool     `json:"debugLogging"`
@@ -81,18 +72,12 @@ type TokenResponse struct {
 }
 
 type IndexResponse struct {
-	Exists      bool   `json:"exists"`
-	Indexing    bool   `json:"indexing"`
-	TotalSteps  int    `json:"totalSteps"`
-	CurrentStep int    `json:"currentStep"`
-	CurrentDesc string `json:"currentDesc"`
-	TotalFiles  int    `json:"totalFiles"`
-}
-
-// TODO: legacy, remove in v2
-type ReaderStatusResponse struct {
-	Connected bool   `json:"connected"`
-	Type      string `json:"type"`
+	Exists             bool    `json:"exists"`
+	Indexing           bool    `json:"indexing"`
+	TotalSteps         *int    `json:"totalSteps,omitempty"`
+	CurrentStep        *int    `json:"currentStep,omitempty"`
+	CurrentStepDisplay *string `json:"currentStepDisplay,omitempty"`
+	TotalFiles         *int    `json:"totalFiles,omitempty"`
 }
 
 type ReaderResponse struct {
@@ -103,24 +88,23 @@ type ReaderResponse struct {
 }
 
 type PlayingResponse struct {
-	System     string `json:"system"`
+	SystemId   string `json:"systemId"`
 	SystemName string `json:"systemName"`
-	Game       string `json:"game"`
-	GameName   string `json:"gameName"`
-	GamePath   string `json:"gamePath"`
-}
-
-type StatusResponse struct {
-	Reader      ReaderStatusResponse `json:"reader"` // TODO: remove in v2
-	Readers     []ReaderResponse     `json:"readers"`
-	ActiveToken TokenResponse        `json:"activeToken"`
-	LastToken   TokenResponse        `json:"lastToken"`
-	Launching   bool                 `json:"launching"`
-	GamesIndex  IndexResponse        `json:"gamesIndex"`
-	Playing     PlayingResponse      `json:"playing"`
+	MediaPath  string `json:"mediaPath"`
+	MediaName  string `json:"mediaName"`
 }
 
 type VersionResponse struct {
 	Version  string `json:"version"`
 	Platform string `json:"platform"`
+}
+
+type MediaResponse struct {
+	Database IndexResponse     `json:"database"`
+	Active   []PlayingResponse `json:"active"`
+}
+
+type TokensResponse struct {
+	Active []TokenResponse `json:"active"`
+	Last   *TokenResponse  `json:"last,omitempty"`
 }
