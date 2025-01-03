@@ -56,6 +56,7 @@ func main() {
 	flags.Pre(pl)
 
 	defaults := config.BaseDefaults
+	defaults.DebugLogging = true
 	iniPath := filepath.Join(utils.ExeDir(), "tapto.ini")
 	if migrate.Required(iniPath, filepath.Join(pl.ConfigDir(), config.CfgFile)) {
 		migrated, err := migrate.IniToToml(iniPath)
@@ -105,6 +106,7 @@ func main() {
 		fmt.Println("Device address: Unknown")
 	} else {
 		fmt.Println("Device address:", ip.String())
+		fmt.Printf("Web App: http://%s:%d/app/\n", ip.String(), cfg.ApiPort())
 	}
 
 	fmt.Println("Press any key to exit")
