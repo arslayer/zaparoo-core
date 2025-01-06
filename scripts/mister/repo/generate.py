@@ -122,7 +122,7 @@ def create_zaparoo_db(tag: str) -> RepoDb:
                     "size": os.stat("{}/{}".format(SCRATCH_FOLDER, zip_filename)).st_size,
                     "url": "{}/{}".format(DL_URL_PREFIX.format(tag), zip_filename),
                 },
-                "description": "Extracting TapTo release",
+                "description": "Extracting Zaparoo release",
                 "internal_summary": {
                     "files": files,
                     "folders": folders,
