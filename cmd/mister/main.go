@@ -114,7 +114,6 @@ func main() {
 		migrated, err := migrate.IniToToml(iniPath)
 		if err != nil {
 			_, _ = fmt.Fprintf(os.Stderr, "Error migrating config: %v\n", err)
-			os.Exit(1)
 		} else {
 			defaults = migrated
 		}
