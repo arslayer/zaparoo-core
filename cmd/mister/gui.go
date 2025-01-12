@@ -21,21 +21,82 @@ along with Zaparoo Core.  If not, see <http://www.gnu.org/licenses/>.
 package main
 
 import (
-	"github.com/ZaparooProject/zaparoo-core/pkg/platforms/mister"
+	"fmt"
+	"os"
 	"os/exec"
 	"path"
 	"strings"
 
 	"github.com/ZaparooProject/zaparoo-core/pkg/config"
 	"github.com/ZaparooProject/zaparoo-core/pkg/platforms"
+	"github.com/ZaparooProject/zaparoo-core/pkg/platforms/mister"
 	"github.com/ZaparooProject/zaparoo-core/pkg/utils"
+	"github.com/gdamore/tcell/v2"
+	"github.com/rivo/tview"
 	"github.com/rs/zerolog/log"
-	"github.com/rthornton128/goncurses"
-	"github.com/wizzomafizzo/mrext/pkg/curses"
 	mrextMister "github.com/wizzomafizzo/mrext/pkg/mister"
 )
 
-func tryAddStartup(stdscr *goncurses.Window) error {
+func BuildAppAndRetry(
+	builder func(pl platforms.Platform, service *utils.Service) *tview.Application,
+	pl platforms.Platform,
+	service *utils.Service,
+) {
+	appTty := builder(pl, service)
+
+	if err := appTty.Run(); err != nil {
+		appTty = nil
+		appTty2 := builder(pl, service)
+		tty, err := tcell.NewDevTtyFromDev("/dev/tty2")
+		if err == nil {
+			screen, err := tcell.NewTerminfoScreenFromTty(tty)
+			if err == nil {
+				appTty2.SetScreen(screen)
+			} else {
+				panic(err)
+			}
+		} else {
+			panic(err)
+		}
+		if err := appTty2.Run(); err != nil {
+			panic(err)
+		}
+	}
+}
+
+func buildTheInstallRequestApp(pl platforms.Platform, service *utils.Service) *tview.Application {
+	var startup mrextMister.Startup
+	app := tview.NewApplication()
+	// create the main modal
+	modal := tview.NewModal()
+	modal.SetTitle("Install service").
+		SetBorder(true).
+		SetTitleAlign(tview.AlignCenter)
+	modal.SetText("Add Zaparoo service to MiSTer startup?\nThis won't impact MiSTer's performance.").
+		AddButtons([]string{"Yes", "No"}).
+		SetDoneFunc(func(buttonIndex int, buttonLabel string) {
+			if buttonLabel == "Yes" {
+				err := startup.AddService("mrext/" + config.AppName)
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "Error adding to startup: %v\n", err)
+					os.Exit(1)
+				}
+				if len(startup.Entries) > 0 {
+					err = startup.Save()
+					if err != nil {
+						fmt.Fprintf(os.Stderr, "Error saving startup: %v\n", err)
+						os.Exit(1)
+					}
+				}
+				app.Stop()
+			} else if buttonLabel == "No" {
+				app.Stop()
+			}
+		})
+	return app.SetRoot(modal, true).EnableMouse(true)
+}
+
+func tryAddStartup(pl platforms.Platform, service *utils.Service) {
 	var startup mrextMister.Startup
 
 	err := startup.Load()
@@ -49,379 +110,157 @@ func tryAddStartup(stdscr *goncurses.Window) error {
 	if startup.Exists("mrext/tapto") {
 		err = startup.Remove("mrext/tapto")
 		if err != nil {
-			return err
+			panic(err)
 		}
 		changed = true
 	}
-
 	if !startup.Exists("mrext/" + config.AppName) {
-		win, err := curses.NewWindow(stdscr, 6, 43, "", -1)
-		if err != nil {
-			return err
-		}
-		defer func(win *goncurses.Window) {
-			err := win.Delete()
-			if err != nil {
-				log.Error().Msgf("failed to delete window: %s", err)
-			}
-		}(win)
-
-		var ch goncurses.Key
-		selected := 0
-
-		for {
-			win.MovePrint(1, 3, "Add Zaparoo service to MiSTer startup?")
-			win.MovePrint(2, 2, "This won't impact MiSTer's performance.")
-			curses.DrawActionButtons(win, []string{"Yes", "No"}, selected, 10)
-
-			win.NoutRefresh()
-			err := goncurses.Update()
-			if err != nil {
-				return err
-			}
-
-			ch = win.GetChar()
-
-			if ch == goncurses.KEY_LEFT {
-				if selected == 0 {
-					selected = 1
-				} else {
-					selected = 0
-				}
-			} else if ch == goncurses.KEY_RIGHT {
-				if selected == 0 {
-					selected = 1
-				} else {
-					selected = 0
-				}
-			} else if ch == goncurses.KEY_ENTER || ch == 10 || ch == 13 {
-				break
-			} else if ch == goncurses.KEY_ESC {
-				selected = 1
-				break
-			}
-		}
-
-		if selected == 0 {
-			err = startup.AddService("mrext/" + config.AppName)
-			if err != nil {
-				return err
-			}
-			changed = true
-		}
-
-		if changed && len(startup.Entries) > 0 {
-			err = startup.Save()
-			if err != nil {
-				return err
-			}
-		}
+		BuildAppAndRetry(buildTheInstallRequestApp, pl, service)
 	}
-
-	return nil
 }
 
-func copyLogToSd(pl platforms.Platform, stdscr *goncurses.Window) error {
-	width := 46
-	win, err := curses.NewWindow(stdscr, 6, width, "", -1)
-	if err != nil {
-		return err
-	}
-	defer func(win *goncurses.Window) {
-		err := win.Delete()
-		if err != nil {
-			log.Error().Msgf("failed to delete window: %s", err)
-		}
-	}(win)
-
+func copyLogToSd(pl platforms.Platform) string {
 	logPath := path.Join(pl.LogDir(), config.LogFile)
 	newPath := path.Join(mister.DataDir, config.LogFile)
-	err = utils.CopyFile(logPath, newPath)
-
-	printCenter := func(y int, text string) {
-		win.MovePrint(y, (width-len(text))/2, text)
-	}
-
+	err := utils.CopyFile(logPath, newPath)
+	outcome := ""
 	if err != nil {
-		printCenter(1, "Unable to copy log file to SD card.")
+		outcome = "Unable to copy log file to SD card."
 		log.Error().Err(err).Msgf("error copying log file")
 	} else {
-		printCenter(1, "Copied "+config.LogFile+" to SD card.")
+		outcome = "Copied " + config.LogFile + " to SD card."
 	}
-	win.NoutRefresh()
-
-	curses.DrawActionButtons(win, []string{"OK"}, 0, 2)
-	win.NoutRefresh()
-
-	err = goncurses.Update()
-	if err != nil {
-		return err
-	}
-
-	_ = win.GetChar()
-	return nil
+	return outcome
 }
 
-func uploadLog(pl platforms.Platform, stdscr *goncurses.Window) error {
-	width := 46
-	win, err := curses.NewWindow(stdscr, 6, width, "", -1)
-	if err != nil {
-		return err
-	}
-	defer func(win *goncurses.Window) {
-		err := win.Delete()
-		if err != nil {
-			log.Error().Msgf("failed to delete window: %s", err)
-		}
-	}(win)
+func uploadLog(pl platforms.Platform, pages *tview.Pages, app *tview.Application) string {
 
 	logPath := path.Join(pl.LogDir(), config.LogFile)
-
-	printCenter := func(y int, text string) {
-		win.MovePrint(y, (width-len(text))/2, text)
-	}
-
-	clearLine := func(y int) {
-		win.MovePrint(y, 2, strings.Repeat(" ", width-3))
-	}
-
-	printCenter(1, "Uploading log file...")
-	win.NoutRefresh()
-	err = goncurses.Update()
-	if err != nil {
-		return err
-	}
-
+	modal := genericModal("Uploading log file...", "Log upload", func(buttonIndex int, buttonLabel string) {}, false)
+	pages.RemovePage("export")
+	// fixme: this is not updating, too busy
+	pages.AddPage("temp_upload", modal, true, true)
+	app.ForceDraw()
 	uploadCmd := "cat '" + logPath + "' | nc termbin.com 9999"
 	out, err := exec.Command("bash", "-c", uploadCmd).Output()
-	clearLine(1)
-	clearLine(2)
+	pages.RemovePage("temp_upload")
 	if err != nil {
-		printCenter(1, "Unable to upload log file.")
 		log.Error().Err(err).Msgf("error uploading log file to termbin")
+		return "Unable to upload log file."
 	} else {
-		printCenter(1, "Log file URL:")
-		printCenter(2, strings.TrimSpace(string(out)))
+		return "Log file URL:\n" + strings.TrimSpace(string(out))
 	}
-	// no idea why but if i don't draw this box part of the windows border is
-	// cleared by the url being displayed
-	_ = win.Box(goncurses.ACS_VLINE, goncurses.ACS_HLINE)
-	win.NoutRefresh()
-
-	curses.DrawActionButtons(win, []string{"OK"}, 0, 2)
-	win.NoutRefresh()
-
-	err = goncurses.Update()
-	if err != nil {
-		return err
-	}
-
-	_ = win.GetChar()
-	return nil
 }
 
-func exportLog(pl platforms.Platform, stdscr *goncurses.Window) error {
-	width := 46
-	win, err := curses.NewWindow(stdscr, 6, width, "", -1)
-	if err != nil {
-		return err
-	}
-	defer func(win *goncurses.Window) {
-		err := win.Delete()
-		if err != nil {
-			log.Error().Msgf("failed to delete window: %s", err)
-		}
-	}(win)
+func modalBuilder(content tview.Primitive, width int, height int) tview.Primitive {
 
-	printLeft := func(y int, text string) {
-		win.MovePrint(y, 2, text)
-	}
+	itemHeight := tview.NewFlex().
+		SetDirection(tview.FlexRow).
+		AddItem(nil, 0, 1, false).
+		AddItem(content, height, 1, true).
+		AddItem(nil, 0, 1, false)
 
-	clearLine := func(y int) {
-		win.MovePrint(y, 2, strings.Repeat(" ", width-4))
-	}
-
-	var ch goncurses.Key
-	selectedButton := 1
-	selectedMenu := 0
-	display := true
-
-	for display {
-		menuOnline := "Upload to termbin.com"
-		clearLine(1)
-		if selectedMenu == 0 {
-			printLeft(1, "> "+menuOnline)
-		} else {
-			printLeft(1, "  "+menuOnline)
-		}
-		win.NoutRefresh()
-
-		menuSd := "Copy to SD card"
-		clearLine(2)
-		if selectedMenu == 1 {
-			printLeft(2, "> "+menuSd)
-		} else {
-			printLeft(2, "  "+menuSd)
-		}
-		win.NoutRefresh()
-
-		curses.DrawActionButtons(win, []string{"Cancel", "OK"}, selectedButton, 2)
-		win.NoutRefresh()
-
-		err := goncurses.Update()
-		if err != nil {
-			return err
-		}
-
-		ch = win.GetChar()
-
-		switch ch {
-		case goncurses.KEY_LEFT:
-			if selectedButton == 0 {
-				selectedButton = 1
-			} else {
-				selectedButton = 0
-			}
-		case goncurses.KEY_RIGHT:
-			if selectedButton == 1 {
-				selectedButton = 0
-			} else {
-				selectedButton = 1
-			}
-		case goncurses.KEY_UP:
-			if selectedMenu == 0 {
-				selectedMenu = 1
-			} else {
-				selectedMenu = 0
-			}
-		case goncurses.KEY_DOWN:
-			if selectedMenu == 0 {
-				selectedMenu = 1
-			} else {
-				selectedMenu = 0
-			}
-		case goncurses.KEY_ESC:
-			return nil
-		case goncurses.KEY_ENTER, 10, 13:
-			if selectedButton == 0 {
-				return nil
-			} else {
-				display = false
-			}
-		}
-	}
-
-	if selectedButton == 1 {
-		if selectedMenu == 0 {
-			return uploadLog(pl, stdscr)
-		} else {
-			return copyLogToSd(pl, stdscr)
-		}
-	}
-
-	return nil
+	return tview.NewFlex().
+		AddItem(nil, 0, 1, false).
+		AddItem(itemHeight, width, 1, true).
+		AddItem(nil, 0, 1, false)
 }
 
-func displayServiceInfo(pl platforms.Platform, cfg *config.Instance, stdscr *goncurses.Window, service *utils.Service) error {
-	width := 50
-	height := 8
+func genericModal(message string, title string, action func(buttonIndex int, buttonLabel string), withButton bool) *tview.Modal {
+	modal := tview.NewModal()
+	modal.SetTitle(title).
+		SetBorder(true).
+		SetTitleAlign(tview.AlignCenter)
+	modal.SetText(message)
+	if withButton {
+		modal.AddButtons([]string{"OK"}).
+			SetDoneFunc(action)
+	}
 
-	win, err := curses.NewWindow(stdscr, height, width, "", -1)
+	return modal
+}
+
+func buildTheUi(pl platforms.Platform, service *utils.Service) *tview.Application {
+	app := tview.NewApplication()
+	modal := tview.NewModal()
+	logExport := tview.NewList()
+
+	var statusText string
+	running := service.Running()
+	if running {
+		statusText = "RUNNING"
+	} else {
+		statusText = "NOT RUNNING"
+	}
+
+	ip, err := utils.GetLocalIp()
+	var ipDisplay string
 	if err != nil {
-		return err
-	}
-	defer func(win *goncurses.Window) {
-		err := win.Delete()
-		if err != nil {
-			log.Error().Msgf("failed to delete window: %s", err)
-		}
-	}(win)
-
-	win.Timeout(300)
-
-	printLeft := func(y int, text string) {
-		win.MovePrint(y, 2, text)
+		ipDisplay = "Unknown"
+	} else {
+		ipDisplay = ip.String()
 	}
 
-	printCenter := func(y int, text string) {
-		win.MovePrint(y, (width-len(text))/2, text)
-	}
+	// ugly text for the modal content. sorry.
+	text := ""
+	text = text + "  Visit zaparoo.org for guides and help!  \n"
+	text = text + "──────────────────────────────────────────\n"
+	text = text + "  Service:        " + statusText + "\n"
+	text = text + "  Device address: " + ipDisplay + "\n"
+	text = text + "──────────────────────────────────────────\n"
 
-	clearLine := func(y int) {
-		win.MovePrint(y, 2, strings.Repeat(" ", width-4))
-	}
+	pages := tview.NewPages().
+		AddPage("main", modal, true, true)
 
-	var ch goncurses.Key
-	selected := 1
+	// create the small log export modal
+	logExport.
+		AddItem("Upload to termbin.com", "", 'a', func() {
+			pages.RemovePage("export")
+			outcome := uploadLog(pl, pages, app)
+			modal := genericModal(outcome, "Log upload", func(buttonIndex int, buttonLabel string) {
+				pages.RemovePage("upload")
+			}, true)
+			pages.AddPage("upload", modal, true, true)
+		}).
+		AddItem("Copy to SD card", "", 'b', func() {
+			pages.RemovePage("export")
+			outcome := copyLogToSd(pl)
+			modal := genericModal(outcome, "Log copy", func(buttonIndex int, buttonLabel string) {
+				pages.RemovePage("copy")
+			}, true)
+			pages.AddPage("copy", modal, true, true)
+		}).
+		AddItem("Cancel", "", 'q', func() {
+			pages.RemovePage("export")
+		}).
+		ShowSecondaryText(false)
+		// Coloring will require some effort
+		// SetBackgroundColor(modal.GetBackgroundColor())
+	logExport.
+		SetBorder(true).
+		SetBorderPadding(1, 1, 1, 1).
+		SetTitle("Log export")
 
-	for {
-		var statusText string
-		running := service.Running()
-		if running {
-			statusText = "Service:        RUNNING"
-		} else {
-			statusText = "Service:        NOT RUNNING"
-		}
-
-		printCenter(0, "Zaparoo Core v"+config.AppVersion+" ("+pl.Id()+")")
-
-		clearLine(1)
-		printCenter(1, "Visit zaparoo.org for guides and help!")
-
-		win.HLine(2, 1, goncurses.ACS_HLINE, width-2)
-		win.MoveAddChar(2, 0, goncurses.ACS_LTEE)
-		win.MoveAddChar(2, width-1, goncurses.ACS_RTEE)
-
-		clearLine(3)
-		printLeft(3, statusText)
-
-		ip, err := utils.GetLocalIp()
-		var ipDisplay string
-		if err != nil {
-			ipDisplay = "Unknown"
-		} else {
-			ipDisplay = ip.String()
-		}
-
-		clearLine(4)
-		printLeft(4, "Device address: "+ipDisplay)
-
-		clearLine(height - 2)
-		curses.DrawActionButtons(win, []string{"Export Log", "Exit"}, selected, 2)
-
-		win.NoutRefresh()
-		err = goncurses.Update()
-		if err != nil {
-			return err
-		}
-
-		ch = win.GetChar()
-
-		if ch == goncurses.KEY_LEFT {
-			if selected == 0 {
-				selected = 1
-			} else {
-				selected = 0
+	// create the main modal
+	modal.SetTitle("Zaparoo Core v" + config.AppVersion + " (" + pl.Id() + ")").
+		SetBorder(true).
+		SetTitleAlign(tview.AlignCenter)
+	modal.SetText(text).
+		AddButtons([]string{"Export log", "Exit"}).
+		SetDoneFunc(func(buttonIndex int, buttonLabel string) {
+			if buttonLabel == "Exit" {
+				app.Stop()
 			}
-		} else if ch == goncurses.KEY_RIGHT {
-			if selected == 0 {
-				selected = 1
-			} else {
-				selected = 0
+			if buttonLabel == "Export log" {
+				widget := modalBuilder(logExport, 42, 8)
+				pages.AddPage("export", widget, true, true)
 			}
-		} else if ch == goncurses.KEY_ENTER || ch == 10 || ch == 13 {
-			if selected == 0 {
-				err := exportLog(pl, stdscr)
-				if err != nil {
-					log.Error().Msgf("failed to display export log window: %s", err)
-				}
-			} else {
-				break
-			}
-		} else if ch == goncurses.KEY_ESC {
-			break
-		}
-	}
+		})
 
-	return nil
+	return app.SetRoot(pages, true).EnableMouse(true)
+}
+
+func displayServiceInfo(pl platforms.Platform, cfg *config.Instance, service *utils.Service) {
+	// Asturur > Wizzo
+	BuildAppAndRetry(buildTheUi, pl, service)
 }
