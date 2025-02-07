@@ -142,7 +142,7 @@ func WaitNotification(
 	u := url.URL{
 		Scheme: "ws",
 		Host:   "localhost:" + strconv.Itoa(cfg.ApiPort()),
-		Path:   "/api/v1.0",
+		Path:   "/api/v0.1",
 	}
 
 	c, _, err := websocket.DefaultDialer.Dial(u.String(), nil)

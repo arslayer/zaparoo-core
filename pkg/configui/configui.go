@@ -69,6 +69,9 @@ func BuildMainMenu(cfg *config.Instance, pages *tview.Pages, app *tview.Applicat
 		}).
 		AddItem("Mappings", "Not implemented yet", '9', func() {
 		}).
+		AddItem("Read", "Read text from Card", 'r', func() {
+			pages.SwitchToPage("read")
+		}).
 		AddItem("Save and exit", "Press to save", 's', func() {
 			cfg.Save()
 			app.Stop()
@@ -208,6 +211,17 @@ func BuildScanModeMenu(cfg *config.Instance, pages *tview.Pages, app *tview.Appl
 	return scanMenu
 }
 
+func BuildReadMenu(pages *tview.Pages, app *tview.Application) *tview.Form {
+	readmenu := tview.NewForm()
+	readmenu.AddButton("back", func() {
+		pages.SwitchToPage("main")
+	})
+	readmenu.SetTitle(" Zaparoo config editor - Read menu ")
+	pageDefaults("readmenu", pages, readmenu)
+	return readmenu
+
+}
+
 func ConfigUi(cfg *config.Instance, pl platforms.Platform) {
 	app := tview.NewApplication()
 	pages := tview.NewPages()
@@ -222,6 +236,7 @@ func ConfigUi(cfg *config.Instance, pl platforms.Platform) {
 	BuildAudionMenu(cfg, pages, app)
 	BuildReadersMenu(cfg, pages, app)
 	BuildScanModeMenu(cfg, pages, app)
+	BuildReadMenu(pages, app)
 	pages.SwitchToPage("main")
 
 	// on mister, when running from scripts menu, /dev/tty is not available
