@@ -211,13 +211,18 @@ func BuildScanModeMenu(cfg *config.Instance, pages *tview.Pages, app *tview.Appl
 	return scanMenu
 }
 
-func BuildReadMenu(pages *tview.Pages, app *tview.Application) *tview.Form {
-	readmenu := tview.NewForm()
-	readmenu.AddButton("back", func() {
+// Reads and displays tag info on screen
+func BuildReadMenu(pages *tview.Pages, app *tview.Application) *tview.List {
+
+	readmenu := tview.NewList().AddItem(
+		"back", "main menu", 'b', func() {
+			pages.SwitchToPage("main")
+		})
+	/*readmenu.AddButton("back", func() {
 		pages.SwitchToPage("main")
-	})
+	})*/
 	readmenu.SetTitle(" Zaparoo config editor - Read menu ")
-	pageDefaults("readmenu", pages, readmenu)
+	pageDefaults("read", pages, readmenu)
 	return readmenu
 
 }
