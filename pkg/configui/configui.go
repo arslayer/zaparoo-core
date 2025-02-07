@@ -2,10 +2,16 @@ package configui
 
 import (
 	"errors"
+	"fmt"
+	"github.com/ZaparooProject/zaparoo-core/pkg/api/client"
+	"github.com/ZaparooProject/zaparoo-core/pkg/api/models"
+	"github.com/rs/zerolog/log"
 	"os"
+	"os/signal"
 	"slices"
 	"strconv"
 	"strings"
+	"syscall"
 
 	"github.com/ZaparooProject/zaparoo-core/pkg/config"
 	"github.com/ZaparooProject/zaparoo-core/pkg/database/gamesdb"
@@ -212,12 +218,58 @@ func BuildScanModeMenu(cfg *config.Instance, pages *tview.Pages, app *tview.Appl
 }
 
 // Reads and displays tag info on screen
-func BuildReadMenu(pages *tview.Pages, app *tview.Application) *tview.List {
+func BuildReadMenu(cfg *config.Instance, pages *tview.Pages, app *tview.Application) *tview.List {
 
 	readmenu := tview.NewList().AddItem(
 		"back", "main menu", 'b', func() {
 			pages.SwitchToPage("main")
 		})
+
+	enableRun := func() {
+		_, err := client.LocalClient(
+			cfg,
+			models.MethodSettingsUpdate,
+			"{\"runZapScript\":true}",
+		)
+		if err != nil {
+			log.Error().Err(err).Msg("error re-enabling run")
+			_, _ = fmt.Fprintf(os.Stderr, "Error re-enabling run: %v\n", err)
+			os.Exit(1)
+		}
+	}
+
+	_, err := client.LocalClient(
+		cfg,
+		models.MethodSettingsUpdate,
+		"{\"runZapScript\":false}",
+	)
+	if err != nil {
+		log.Error().Err(err).Msg("error disabling run")
+		_, _ = fmt.Fprintf(os.Stderr, "Error disabling run: %v\n", err)
+		os.Exit(1)
+	}
+
+	// cleanup after ctrl-c
+	sigs := make(chan os.Signal, 1)
+	defer close(sigs)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+	go func() {
+		<-sigs
+		enableRun()
+		os.Exit(0)
+	}()
+
+	resp, err := client.WaitNotification(cfg, models.NotificationTokensAdded)
+	if err != nil {
+		log.Error().Err(err).Msg("error waiting for notification")
+		_, _ = fmt.Fprintf(os.Stderr, "Error waiting for notification: %v\n", err)
+		enableRun()
+		os.Exit(1)
+	}
+
+	enableRun()
+	fmt.Println(resp)
+
 	/*readmenu.AddButton("back", func() {
 		pages.SwitchToPage("main")
 	})*/
@@ -241,7 +293,7 @@ func ConfigUi(cfg *config.Instance, pl platforms.Platform) {
 	BuildAudionMenu(cfg, pages, app)
 	BuildReadersMenu(cfg, pages, app)
 	BuildScanModeMenu(cfg, pages, app)
-	BuildReadMenu(pages, app)
+	BuildReadMenu(cfg, pages, app)
 	pages.SwitchToPage("main")
 
 	// on mister, when running from scripts menu, /dev/tty is not available
